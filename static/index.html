@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bhumika's Travel Journal</title>
+
+  <!-- Google Fonts & Leaflet CSS -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <style>
+    :root {
+      --primary: #6b21a8;        /* Deep Purple Header/Theme */
+      --primary-accent: #7c3aed; /* Purple Accent */
+      --primary-light: #faf5ff;  /* Soft Purple Tint */
+      --pin-red: #ef4444;        /* Vibrant Red for Pins */
+      --bg-page: #f8fafc;
+      --card-bg: #ffffff;        /* Clean White Cards */
+      --text-main: #1e1b4b;
+      --text-muted: #6b21a8;
+      --shadow: 0 10px 15px -3px rgba(107, 33, 168, 0.08), 0 4px 6px -4px rgba(107, 33, 168, 0.05);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: var(--bg-page);
+      color: var(--text-main);
+      min-height: 100vh;
+      padding: 30px 20px;
+    }
+
+    .app-container {
+      max-width: 1300px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* Centered Header */
+    header {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding-bottom: 8px;
+      text-align: center;
+    }
+
+    .brand h1 {
+      font-size: 34px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--primary);
+    }
+
+    /* Stats Row */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+    }
+
+    .stat-card {
+      background: var(--card-bg);
+      padding: 20px;
+      border-radius: 16px;
+      border: 1px solid #e9d5ff;
+      box-shadow: var(--shadow);
+    }
+
+    .stat-card span {
+      font-size: 13px;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+    }
+
+    .stat-card h3 {
+      font-size: 28px;
+      font-weight: 700;
+      margin-top: 6px;
+      color: var(--primary);
+    }
+
+    /* Main Dashboard Grid: Sidebar + Upload + Map */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 1024px) {
+      .dashboard-grid { grid-template-columns: 1fr; }
+    }
+
+    .left-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .upload-card, .sidebar-card {
+      background: var(--card-bg);
+      padding: 20px;
+      border-radius: 20px;
+      border: 1px solid #e9d5ff;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .upload-card h2, .sidebar-card h2 {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .drop-zone {
+      border: 2px dashed #c084fc;
+      border-radius: 12px;
+      padding: 20px 15px;
+      text-align: center;
+      background: var(--primary-light);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .drop-zone:hover {
+      border-color: var(--primary-accent);
+      background: #f3e8ff;
+    }
+
+    .drop-zone p {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    input[type="file"] { display: none; }
+
+    .btn-submit {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 12px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s ease;
+      width: 100%;
+    }
+
+    .btn-submit:hover {
+      background: #581c87;
+    }
+
+    #statusMessage {
+      font-size: 12px;
+      color: #581c87;
+      text-align: center;
+      line-height: 1.4;
+    }
+
+    /* Filter Controls in Sidebar */
+    .filter-box {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .filter-input, .filter-select {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid #e9d5ff;
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+      background: #fcfaff;
+      color: var(--text-main);
+    }
+
+    .filter-input:focus, .filter-select:focus {
+      border-color: var(--primary-accent);
+    }
+
+    /* Memories List Container */
+    .memories-list {
+      max-height: 380px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding-right: 4px;
+    }
+
+    .memory-item {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      padding: 10px;
+      border-radius: 12px;
+      border: 1px solid #f3e8ff;
+      background: var(--primary-light);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .memory-item:hover {
+      background: #f3e8ff;
+      border-color: #c084fc;
+      transform: translateY(-2px);
+    }
+
+    .memory-item img {
+      width: 52px;
+      height: 52px;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 1px solid #e9d5ff;
+    }
+
+    .memory-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      overflow: hidden;
+    }
+
+    .memory-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .memory-date {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    /* Map Card Container */
+    .map-card {
+      background: var(--card-bg);
+      padding: 12px;
+      border-radius: 20px;
+      border: 1px solid #e9d5ff;
+      box-shadow: var(--shadow);
+    }
+
+    #map {
+      height: 720px;
+      width: 100%;
+      border-radius: 14px;
+    }
+
+    /* Photo Popup Card Custom Styling */
+    .leaflet-popup-content-wrapper {
+      background: #ffffff;
+      border-radius: 14px;
+      padding: 10px;
+      box-shadow: 0 10px 20px rgba(239, 68, 68, 0.15);
+      border: 2px solid #fca5a5;
+      max-width: 240px;
+    }
+
+    .popup-card {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .popup-card img {
+      width: 100%;
+      height: 140px;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 1px solid #fee2e2;
+    }
+
+    .popup-title {
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--text-main);
+      line-height: 1.3;
+    }
+
+    .popup-date {
+      font-size: 11px;
+      color: var(--pin-red);
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-container">
+    
+    <!-- Centered Top Header -->
+    <header>
+      <div class="brand">
+        <h1>Bhumika's Travel Journal</h1>
+      </div>
+    </header>
+
+    <!-- Metrics Row: States Tracking -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <span>Traveled US States</span>
+        <h3 id="statStatesTraveled">0 / 50</h3>
+      </div>
+      <div class="stat-card">
+        <span>Remaining US States</span>
+        <h3 id="statStatesRemaining">50</h3>
+      </div>
+    </div>
+
+    <!-- Main Grid: Controls + Map -->
+    <div class="dashboard-grid">
+      
+      <!-- Left Column: Upload & Memories Timeline -->
+      <div class="left-controls">
+        
+        <!-- Upload Card -->
+        <div class="upload-card">
+          <h2>Add New Spot</h2>
+          <div class="drop-zone" onclick="document.getElementById('photoInput').click()">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6b21a8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <p id="fileNameDisplay"><strong>Click to upload photo</strong><br>PNG, JPG up to 10MB</p>
+          </div>
+          <input type="file" id="photoInput" accept="image/*" onchange="updateFileName()" />
+          <button class="btn-submit" onclick="uploadPhoto()">Process & Plot</button>
+          <div id="statusMessage">Upload a travel photo to automatically extract location.</div>
+        </div>
+
+        <!-- Memories Timeline Sidebar -->
+        <div class="sidebar-card">
+          <h2>Travel Memories</h2>
+          
+          <div class="filter-box">
+            <input type="text" id="searchInput" class="filter-input" placeholder="Search location..." oninput="filterMemories()" />
+            <select id="stateSelect" class="filter-select" onchange="filterMemories()">
+              <option value="">All States</option>
+            </select>
+          </div>
+
+          <div class="memories-list" id="memoriesList">
+            <!-- Memory item cards rendered dynamically -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right Panel: Interactive Map -->
+      <div class="map-card">
+        <div id="map"></div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const usStateNames = [
+      "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", 
+      "Delaware", "Florida", "Georgia", "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", 
+      "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland", "Massachusetts", "Michigan", 
+      "Minnesota", "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", 
+      "New Jersey", "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio", 
+      "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina", "South Dakota", 
+      "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington", "West Virginia", 
+      "Wisconsin", "Wyoming"
+    ];
+
+    let allLocations = [];
+    let markerMap = {};
+    let geoJsonLayer = null;
+    let usStatesGeoData = null;
+
+    // Custom Red SVG Map Pin Icon
+    const redPinIcon = L.divIcon({
+      className: 'custom-red-pin',
+      html: `
+        <svg width="30" height="42" viewBox="0 0 24 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 0C5.37 0 0 5.37 0 12C0 21 12 36 12 36C12 36 24 21 24 12C24 5.37 18.63 0 12 0ZM12 16C9.79 16 8 14.21 8 12C8 9.79 9.79 8 12 8C14.21 8 16 9.79 16 12C16 14.21 14.21 16 12 16Z" fill="#ef4444" stroke="#ffffff" stroke-width="1.5"/>
+        </svg>
+      `,
+      iconSize: [30, 42],
+      iconAnchor: [15, 42],
+      popupAnchor: [0, -40]
+    });
+
+    // Initialize Leaflet Map
+    const map = L.map('map').setView([38.5, -96.0], 4);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Fetch Public US States GeoJSON Boundaries
+    async function loadGeoJsonData() {
+      try {
+        const res = await fetch('https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json');
+        usStatesGeoData = await res.json();
+      } catch (err) {
+        console.error("Failed to load US States GeoJSON data:", err);
+      }
+    }
+
+    function updateFileName() {
+      const input = document.getElementById('photoInput');
+      const display = document.getElementById('fileNameDisplay');
+      if (input.files.length > 0) {
+        display.innerHTML = `<strong>Selected:</strong><br>${input.files[0].name}`;
+      }
+    }
+
+    function createPopupHTML(loc) {
+      const imageHTML = loc.image_url 
+        ? `<img src="${loc.image_url}" alt="${loc.location_name}" />`
+        : '';
+      
+      return `
+        <div class="popup-card">
+          ${imageHTML}
+          <div class="popup-title">${loc.location_name}</div>
+          <div class="popup-date">Date: ${loc.date_taken}</div>
+        </div>
+      `;
+    }
+
+    // Render/Refresh Shaded Purple Overlay Polygons for Visited States
+    function updateGeoJsonOverlay(visitedStatesSet) {
+      if (!usStatesGeoData) return;
+
+      if (geoJsonLayer) {
+        map.removeLayer(geoJsonLayer);
+      }
+
+      geoJsonLayer = L.geoJSON(usStatesGeoData, {
+        style: function (feature) {
+          const stateName = feature.properties.name;
+          const isVisited = visitedStatesSet.has(stateName);
+
+          return {
+            fillColor: isVisited ? '#7c3aed' : 'transparent',
+            weight: isVisited ? 2 : 1,
+            opacity: 1,
+            color: isVisited ? '#6b21a8' : '#cbd5e1',
+            fillOpacity: isVisited ? 0.35 : 0
+          };
+        },
+        onEachFeature: function (feature, layer) {
+          layer.bindTooltip(feature.properties.name, {
+            sticky: true,
+            className: 'state-tooltip'
+          });
+        }
+      }).addTo(map);
+    }
+
+    // Load Pins, Update Metrics & Render GeoJSON Shading
+    async function loadMarkers() {
+      try {
+        if (!usStatesGeoData) {
+          await loadGeoJsonData();
+        }
+
+        const response = await fetch('/api/locations');
+        allLocations = await response.json();
+
+        // Sort chronologically (newest first)
+        allLocations.sort((a, b) => new Date(b.date_taken) - new Date(a.date_taken));
+
+        const visitedStatesSet = new Set();
+        const stateSelect = document.getElementById('stateSelect');
+        stateSelect.innerHTML = '<option value="">All States</option>';
+
+        // Clear existing markers
+        Object.values(markerMap).forEach(marker => map.removeLayer(marker));
+        markerMap = {};
+
+        allLocations.forEach(loc => {
+          usStateNames.forEach(state => {
+            if (loc.location_name.includes(state)) {
+              visitedStatesSet.add(state);
+            }
+          });
+
+          // Add red pin marker
+          const marker = L.marker([loc.latitude, loc.longitude], { icon: redPinIcon })
+            .addTo(map)
+            .bindPopup(createPopupHTML(loc));
+
+          markerMap[loc.id] = marker;
+        });
+
+        // Update GeoJSON State Shading Polygons
+        updateGeoJsonOverlay(visitedStatesSet);
+
+        // Populate State Dropdown Options
+        Array.from(visitedStatesSet).sort().forEach(state => {
+          const opt = document.createElement('option');
+          opt.value = state;
+          opt.innerText = state;
+          stateSelect.appendChild(opt);
+        });
+
+        // Update State Metrics
+        const traveledCount = visitedStatesSet.size;
+        document.getElementById('statStatesTraveled').innerText = `${traveledCount} / 50`;
+        document.getElementById('statStatesRemaining').innerText = 50 - traveledCount;
+
+        // Render Memories Sidebar Items
+        renderMemoriesList(allLocations);
+
+      } catch (err) {
+        console.error("Failed to load map markers:", err);
+      }
+    }
+
+    // Render Memories List in Sidebar
+    function renderMemoriesList(locations) {
+      const container = document.getElementById('memoriesList');
+      container.innerHTML = '';
+
+      if (locations.length === 0) {
+        container.innerHTML = '<p style="font-size:12px; color:#6b21a8; text-align:center; padding:10px;">No memories found.</p>';
+        return;
+      }
+
+      locations.forEach(loc => {
+        const item = document.createElement('div');
+        item.className = 'memory-item';
+        item.onclick = () => flyToMemory(loc);
+
+        const imgSrc = loc.image_url || 'https://via.placeholder.com/52?text=Map';
+
+        item.innerHTML = `
+          <img src="${imgSrc}" alt="${loc.location_name}" />
+          <div class="memory-info">
+            <div class="memory-title" title="${loc.location_name}">${loc.location_name}</div>
+            <div class="memory-date">${loc.date_taken}</div>
+          </div>
+        `;
+
+        container.appendChild(item);
+      });
+    }
+
+    // Smooth Flight Animation
+    function flyToMemory(loc) {
+      map.flyTo([loc.latitude, loc.longitude], 10, {
+        duration: 1.5
+      });
+
+      const marker = markerMap[loc.id];
+      if (marker) {
+        setTimeout(() => {
+          marker.openPopup();
+        }, 1500);
+      }
+    }
+
+    // Filter Memories by Search & State Select
+    function filterMemories() {
+      const search = document.getElementById('searchInput').value.toLowerCase();
+      const selectedState = document.getElementById('stateSelect').value;
+
+      const filtered = allLocations.filter(loc => {
+        const matchesSearch = loc.location_name.toLowerCase().includes(search);
+        const matchesState = selectedState === "" || loc.location_name.includes(selectedState);
+        return matchesSearch && matchesState;
+      });
+
+      renderMemoriesList(filtered);
+    }
+
+    // Upload Photo Function
+    async function uploadPhoto() {
+      const fileInput = document.getElementById('photoInput');
+      const statusMsg = document.getElementById('statusMessage');
+
+      if (!fileInput.files[0]) {
+        alert('Please select an image file first.');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('file', fileInput.files[0]);
+
+      statusMsg.innerText = 'Extracting GPS metadata & saving photo...';
+
+      try {
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          statusMsg.innerText = 'Success! Photo plotted on map.';
+          fileInput.value = '';
+          document.getElementById('fileNameDisplay').innerHTML = '<strong>Click to upload photo</strong><br>PNG, JPG up to 10MB';
+          loadMarkers();
+        } else {
+          statusMsg.innerText = `Error: ${data.detail}`;
+        }
+      } catch (err) {
+        statusMsg.innerText = 'Failed to upload photo.';
+      }
+    }
+
+    loadMarkers();
+  </script>
+
+</body>
+</html>

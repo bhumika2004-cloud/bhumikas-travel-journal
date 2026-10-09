@@ -1,0 +1,12 @@
+# Virtual Environment
+venv/
+__pycache__/
+*.pyc
+
+# Database & Uploads
+travel.db
+static/uploads/*
+!static/uploads/.gitkeep
+
+# VS Code settings
+.vscode/
